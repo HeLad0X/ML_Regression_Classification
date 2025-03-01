@@ -26,6 +26,8 @@ class Config:
         else:
             dataset = datasets.load_iris()
             df = cudf.DataFrame(dataset.data, columns=dataset.feature_names)
+            df['target'] = dataset.target
+            print(df.head())
             df.to_csv(self._dataset_path, index=False)
             return df
 
