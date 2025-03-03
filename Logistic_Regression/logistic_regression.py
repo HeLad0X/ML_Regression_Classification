@@ -1,41 +1,47 @@
 from preprocessing import get_preprocessed_data
 from config import get_model_path
 from test_model import start_testing_model
-from cuml.model_selection import GridSearchCV
-from cuml.linear_model import LinearRegression
-from cuml.pipeline import Pipeline
+from cuml.linear_model import LogisticRegression
+from cuml.model_selection import StratifiedKFold
+import cupy as cp
 
 import joblib
 import os
 
-# Start training
 def train_model(split_data):
-    X_train = split_data['X_train']
-    y_train = split_data['y_train']
+    X_train = split_data['X_train']  # CuPy array
+    y_train = split_data['y_train']  # CuPy array
 
-    # Define logistic regression model
-    model = LinearRegression()
+    X_train = cp.ascontiguousarray(X_train)
+    y_train = cp.ascontiguousarray(y_train)
 
-    # Define a pipeline with a single step for logistic regression.
-    pipe = Pipeline([("logreg", LinearRegression())])
-
-    # Define hyperparameters using the pipeline step name.
     param_grid = {
-        'logreg__penalty': ['l2'],  # Only l2 is supported in cuML
-        'logreg__C': [0.1, 1, 10, 100],  # Regularization strength
-        'logreg__max_iter': [100, 200, 500, 1000]  # Number of iterations
+        'penalty': ['l2'],
+        'C': [0.1, 1, 10, 100],
+        'max_iter': [100, 200, 500, 1000]
     }
 
-    # Define grid search object
-    grid_search = GridSearchCV(pipe, param_grid, cv=5, scoring='accuracy', verbose=2)
-    grid_search.fit(X_train, y_train)
+    best_score = -float('inf')
+    best_model = None
+    skf = StratifiedKFold(n_splits=5)
 
-    # Print the best params
-    print("Best Parameters:", grid_search.best_params_)
-    print("Best Score:", grid_search.best_score_)
+    for C in param_grid['C']:
+        for max_iter in param_grid['max_iter']:
+            model = LogisticRegression(penalty='l2', C=C, max_iter=max_iter)
+            scores = []
+            for train_idx, val_idx in skf.split(X_train, y_train):
+                X_tr, X_val = X_train[train_idx], X_train[val_idx]
+                y_tr, y_val = y_train[train_idx], y_train[val_idx]
+                model.fit(X_tr, y_tr)
+                score = model.score(X_val, y_val)
+                scores.append(score)
+            mean_score = cp.mean(cp.array(scores))
+            print(f"C: {C}, max_iter: {max_iter}, CV Score: {mean_score}")
+            if mean_score > best_score:
+                best_score = mean_score
+                best_model = model.fit(X_train, y_train)  # Refit on full data
 
-    # Get the best model and return it
-    best_model = grid_search.best_estimator_
+    print("Best CV Score:", best_score)
     return best_model
 
 # Load model
