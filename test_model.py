@@ -48,8 +48,9 @@ def test_model(y_pred, split_data):
 # Start testing the models
 def start_testing_model(model_path, split_data_train_test):
     print('Starting testing....')
-    y_pred = None
-    model_type = model_path.split('.')[-1]
+
+    model_type = str(model_path).split('.')[-1]
+
     if model_type == 'joblib':
         linear_model = joblib.load(model_path)
         y_pred = predict_model_cuml(linear_model, split_data_train_test)

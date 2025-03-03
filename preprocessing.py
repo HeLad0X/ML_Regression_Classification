@@ -123,9 +123,9 @@ def scale_df(df: cd.DataFrame, numerical_features):
 
     return scaled_df, scaled
 
+
 # Splitting into train and test data
 def split_train_test(df: cd.DataFrame):
-    print('Splitting into training and testing data...')
     X = df.iloc[:, :-1].values
     y = df.iloc[:, -1].values
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -136,6 +136,7 @@ def split_train_test(df: cd.DataFrame):
         'y_train': y_train,
         'y_test': y_test
     }
+
     return split_data
 
 
@@ -177,11 +178,7 @@ def get_preprocessed_data(file_name, target_column):
     temp_df[target_column] = df[target_column]
 
     # Split the data
-    split_df = split_train_test(temp_df)
+    split_data = split_train_test(temp_df)
 
     print('Preprocessing complete. Returning data...')
-    return split_df
-
-final_df = get_preprocessed_data('diabetes.csv', 'Outcome')
-for val in final_df:
-    print(type(final_df[val]))
+    return split_data

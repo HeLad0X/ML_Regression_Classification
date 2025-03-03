@@ -19,7 +19,7 @@ class Config:
     def __init__(self):
         cwd = os.path.dirname(os.getcwd())
         self._data_folder = Path(os.path.join(cwd, 'files_models/data'))
-        self._model_folder = Path(os.path.join(cwd, 'files_models/model'))
+        self._model_folder = Path(os.path.join(cwd, 'files_models/models'))
 
     def get_data_folder(self, file_name):
         print(f'Getting dataframe for {file_name}...')
