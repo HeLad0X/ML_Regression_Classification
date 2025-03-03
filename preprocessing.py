@@ -1,3 +1,13 @@
+"""
+    Steps to take:
+    1. Get the files
+    2. Handle missing values
+    3. Handle categorical data
+    4. Feature scaling
+    5. Data splitting
+    6. Class imbalance
+"""
+
 from config import get_df
 import cupy as cp
 import cudf as cd
@@ -20,6 +30,18 @@ def handle_cat_features(df, categorical_features):
     encoded_df = cd.get_dummies(df[categorical_features])
 
     return encoded_df
+
+# Encode categorical features
+def encode_df(df, categorical_features):
+    encoded_df = None
+    encoded = False
+
+    if len(categorical_features) > 0:
+        print('Encoding categorical features...')
+        encoded_df = handle_cat_features(df, categorical_features)
+        encoded = True
+
+    return encoded_df, encoded
 
 # Function to get the skewness of the data
 def get_skewness(df: cd.DataFrame) -> [float]:
@@ -72,6 +94,7 @@ def scale_numerical_features(df, numerical_features) -> cd.DataFrame:
     """
     Both z-score scaling and IQR scaling are used for scaling the data.
     They are also handling outliers by capping to max and min values.
+    Log transformation is being used for highly skewed data while also handling negative values.
     """
     numerical_df = df[numerical_features]
     skewness = get_skewness(numerical_df)
@@ -87,6 +110,18 @@ def scale_numerical_features(df, numerical_features) -> cd.DataFrame:
             numerical_df[col] = z_score_scaling(cp.asarray(numerical_df[col].values))
 
     return numerical_df
+
+def scale_df(df: cd.DataFrame, numerical_features):
+    scaled_df = None
+    scaled = False
+
+    # Scaling numerical features
+    if len(numerical_features) > 0:
+        print('Scaling numerical features...')
+        scaled_df = scale_numerical_features(df, numerical_features)
+        scaled = True
+
+    return scaled_df, scaled
 
 # Splitting into train and test data
 def split_train_test(df: cd.DataFrame):
@@ -107,15 +142,8 @@ def split_train_test(df: cd.DataFrame):
 # Get preprocessed files
 def get_preprocessed_data(file_name, target_column):
     print('Starting the preprocessing step...')
-    """
-    Steps to take:
-    1. Get the files
-    2. Handle missing values
-    3. Handle categorical data
-    4. Feature scaling
-    5. Data splitting
-    6. Class imbalance
-    """
+
+    # Get the dataframe
     df = get_df(file_name)
     temp_df = df.copy()
 
@@ -130,30 +158,20 @@ def get_preprocessed_data(file_name, target_column):
     temp_df = handle_na(temp_df, categorical_cols, numerical_cols)
 
     # Handle categorical data
-    encoded_df = None
-    scaled_df = None
-    scaled = False
-    encoded = False
+    encoded_df, encoded = encode_df(temp_df, categorical_cols)
 
-    if len(categorical_cols) > 0:
-        print('Encoding categorical features...')
-        encoded_df = handle_cat_features(temp_df, categorical_cols)
-        encoded = True
-
-    # Scaling numerical features
-    if len(numerical_cols) > 0:
-        print('Scaling numerical features...')
-        scaled_df = scale_numerical_features(df, numerical_cols)
-        scaled = True
+    # Scale data
+    scaled_df, scaled = scale_df(df, numerical_cols)
 
     # Concat encoded and scaled df
     if scaled and encoded:
         temp_df = cd.concat([encoded_df, scaled_df], axis=1)
     elif scaled:
         temp_df = scaled_df
-
     elif encoded:
         temp_df = encoded_df
+    else:
+        print('Empty dataframe!')
 
     # Add the target column
     temp_df[target_column] = df[target_column]
@@ -164,3 +182,6 @@ def get_preprocessed_data(file_name, target_column):
     print('Preprocessing complete. Returning data...')
     return split_df
 
+final_df = get_preprocessed_data('diabetes.csv', 'Outcome')
+for val in final_df:
+    print(type(final_df[val]))

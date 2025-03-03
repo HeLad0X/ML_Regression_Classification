@@ -54,5 +54,5 @@ def get_df(file_name):
     return configObj.get_data_folder(file_name)
 
 # Get the model
-def get_model(model_name):
+def get_model_path(model_name):
     return configObj.get_model_path(model_name)
