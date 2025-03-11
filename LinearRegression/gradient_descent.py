@@ -1,8 +1,16 @@
+import sys
+import os
+
+# Get the parent directory
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Add parent directory to sys.path
+sys.path.append(parent_dir)
+
 from config import get_model_path, GradientDescent
-from preprocess_df import get_preprocessed_data
+from preprocessing import get_preprocessed_data
 import cupy as cp
 import pickle
-import os
 from test_model import start_testing_model
 
 # Initialize the parameters
@@ -121,8 +129,12 @@ def train_model(model_path, data):
     return model
 
 if __name__ == '__main__':
-    iris_data = get_preprocessed_data()
-    model_path_gd = get_model_path('gradient_descent_model.pkl')
+    model_path_gd = get_model_path('linear_gradient_descent.pkl')
+
+    dataset_name = 'Iris.csv'
+    target_column = 'Species'
+    iris_data = get_preprocessed_data(dataset_name, target_column)
+
     gradient_descent_model = None
 
     if os.path.exists(model_path_gd):
@@ -133,4 +145,4 @@ if __name__ == '__main__':
         print('Starting training....')
         gradient_descent_model = train_model(model_path_gd, iris_data)
 
-    start_testing_model(model_path_gd, iris_data, 'gradient_descent')
+    start_testing_model(model_path_gd, iris_data)

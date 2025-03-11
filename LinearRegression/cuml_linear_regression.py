@@ -1,9 +1,17 @@
+import sys
+import os
+
+# Get the parent directory
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Add parent directory to sys.path
+sys.path.append(parent_dir)
+
 from cuml.linear_model import LinearRegression
 from cuml.model_selection import GridSearchCV
 from cuml.preprocessing import StandardScaler, PolynomialFeatures
 from cuml.pipeline import Pipeline
-import os
-from preprocess_df import get_preprocessed_data
+from preprocessing import get_preprocessed_data
 from config import get_model_path
 from test_model import start_testing_model
 import joblib
@@ -56,17 +64,17 @@ def start_regression(model_name, split_data):
 
 
 if __name__ == '__main__':
+    dataset_name = 'Iris.csv'
+    split_data_train_test = get_preprocessed_data(dataset_name, 'Species')
+
     model_name_cuml = 'linear_regression_cuml.joblib'
-    cuml_model = None
-    split_data_train_test = get_preprocessed_data(scale_data=False)
 
     if os.path.exists(get_model_path(model_name_cuml)):
         print('Model already exists')
         print('Moving to testing the model....')
-        cuml_model = load_model_from_path(model_name_cuml)
     else:
         print('No model found. Training the model...')
-        cuml_model = start_regression(model_name_cuml, split_data_train_test)
+        start_regression(model_name_cuml, split_data_train_test)
         print('Training completed.')
         print('Testing the model...')
 
