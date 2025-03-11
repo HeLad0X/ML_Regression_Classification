@@ -15,10 +15,19 @@ def predict_model_cuml(model, split_data):
 
     return y_pred
 
+# Sigmoid to get the actual value for the output
+def sigmoid(z):
+    return 1 / (1 + cp.exp(-z))
+
 # Predicting some random values from the model of gradient descent
 def predict_model_custom(model, split_data):
+    print('Custom model')
     X_test = split_data['X_test']
+    y_test = split_data['y_test']
     y_pred = model.predict(X_test)
+    for i in range(10):
+        round_value = int(cp.round(y_pred[i]))
+        print(round_value, ':', y_test[i], round_value == int(y_test[i]))
 
     return y_pred
 

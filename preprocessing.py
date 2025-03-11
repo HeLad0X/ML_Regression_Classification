@@ -1,4 +1,11 @@
 """
+This module implement preprocessing any csv document and is capable of handling most use case scenarios
+    Scenarios:
+    -> Missing value: used filling method. Mean for numerical and mode for categorical
+    -> Categorical data handling: cudf.get_dummies is used for it
+    -> Scaling data: Data is scaled using Standardization, Robust scaling(IQR), and log transformation for different skewness
+
+    
     Steps to take:
     1. Get the files
     2. Handle missing values
@@ -12,6 +19,7 @@ from config import get_df
 import cupy as cp
 import cudf as cd
 from cuml.model_selection import train_test_split
+from typing import List
 
 
 # Handling missing values
@@ -44,7 +52,7 @@ def encode_df(df, categorical_features):
     return encoded_df, encoded
 
 # Function to get the skewness of the data
-def get_skewness(df: cd.DataFrame) -> [float]:
+def get_skewness(df: cd.DataFrame) -> List[float]:
     skewness = []
     for col in df.columns:
         data = cp.asarray(df[col].values)
@@ -99,10 +107,10 @@ def scale_numerical_features(df, numerical_features) -> cd.DataFrame:
     numerical_df = df[numerical_features]
     skewness = get_skewness(numerical_df)
     for i, col in enumerate(numerical_df.columns):
-        if skewness[i] > 1.8 or skewness[i] < -1.8:
+        if skewness[i] > 1.8:
             print(f'Feature {col} is of skewness: {skewness[i]}. Going with log transformation scaling...')
-            numerical_df[col] = iqr_normalization(cp.asarray(numerical_df[col].values))
-        elif skewness[i] > 0.75 or skewness[i] < -0.75:
+            numerical_df[col] = log_transformation(cp.asarray(numerical_df[col].values))
+        elif skewness[i] > 0.75:
             print(f'Feature {col} is of skewness: {skewness[i]}. Going with robust scaling...')
             numerical_df[col] = iqr_normalization(cp.asarray(numerical_df[col].values))
         else:

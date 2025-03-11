@@ -1,12 +1,20 @@
+import sys
+import os
+
+# Get the parent directory
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Add parent directory to sys.path
+sys.path.append(parent_dir)
+
 from preprocessing import get_preprocessed_data
 from config import get_model_path
 from test_model import start_testing_model
 from cuml.linear_model import LogisticRegression
 from cuml.model_selection import StratifiedKFold
 import cupy as cp
-
 import joblib
-import os
+
 
 def train_model(split_data):
     X_train = split_data['X_train']  # CuPy array
@@ -18,7 +26,7 @@ def train_model(split_data):
     param_grid = {
         'penalty': ['l2'],
         'C': [0.1, 1, 10, 100],
-        'max_iter': [100, 200, 500, 1000]
+        'max_iter': [100, 200, 500, 1000, 5000]
     }
 
     best_score = -float('inf')

@@ -4,6 +4,23 @@ from pathlib import Path
 import cudf as cd
 import cupy as cp
 
+
+class GradientAscent:
+    def __init__(self, params):
+        self.params = params
+
+    def _sigmoid(self, z):
+        return 1 / (1 + cp.exp(-z))
+ 
+    def predict(self, X):
+        # Add bias term for prediction
+        X = cp.c_[cp.ones((X.shape[0], 1)), X]
+        z = X.dot(self.params)
+        preditcion = self._sigmoid(z)
+
+        return preditcion
+    
+
 class GradientDescent:
     def __init__(self, params):
         self.params = params
@@ -15,7 +32,8 @@ class GradientDescent:
 
 class Config:
     def __init__(self):
-        cwd = os.path.dirname(os.getcwd())
+        # cwd = os.path.dirname(os.getcwd()) # For using in pycharm
+        cwd = os.getcwd()
         self._data_folder = Path(os.path.join(cwd, 'files_models/data'))
         self._model_folder = Path(os.path.join(cwd, 'files_models/models'))
 
