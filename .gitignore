@@ -64,6 +64,7 @@ nosetests.xml
 *.hypothesis/
 
 # Miscellaneous
+*.env
 *.dat
 *.bak
 *.tmp

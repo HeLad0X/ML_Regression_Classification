@@ -1,74 +1,105 @@
-from cuml.metrics import mean_squared_error, mean_absolute_error, r2_score
+import os
 import cupy as cp
 import joblib
 import pickle
+import numpy as np
 
-# Predicting some random values from the model of cuml
-def predict_model_cuml(model, split_data):
-    X_test = split_data['X_test']
-    y_test = split_data['y_test']
-    y_pred = model.predict(X_test)
-    for i in range(10):
-        round_value = int(cp.round(y_pred[i]))
-        print(round_value, ':', y_test[i], round_value == int(y_test[i]))
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix,
+    mean_squared_error, mean_absolute_error, r2_score
+)
 
-    return y_pred
+def is_binary(y_np):
+    """Return True if y_np contains exactly two unique values {0,1}."""
+    uniq = np.unique(y_np)
+    return len(uniq) == 2 and set(uniq).issubset({0, 1})
 
-# Sigmoid to get the actual value for the output
-def sigmoid(z):
-    return 1 / (1 + cp.exp(-z))
-
-# Predicting some random values from the model of gradient descent
-def predict_model_custom(model, split_data):
-    print('Custom model')
-    X_test = split_data['X_test']
-    y_test = split_data['y_test']
-    y_pred = model.predict(X_test)
-    for i in range(10):
-        round_value = int(cp.round(y_pred[i]))
-        print(round_value, ':', y_test[i], round_value == int(y_test[i]))
-
-    return y_pred
-
-# Printing various metrics of the model
-def test_model(y_pred, split_data):
-    y_test = split_data['y_test'].astype('float32')
-    X_test = split_data['X_test'].astype('float32')
-    y_pred = y_pred.astype('float32')
-
-    # Compute evaluation metrics
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = cp.sqrt(mse)  # RMSE is sqrt of MSE
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-
-    # Compute Adjusted R² (manual calculation)
-    n = len(y_test)  # Number of samples
-    p = X_test.shape[1]  # Number of features
-    adjusted_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
-
-    # Print results
-    print(f"Mean Squared Error (MSE): {mse}")
-    print(f"Root Mean Squared Error (RMSE): {rmse}")
-    print(f"Mean Absolute Error (MAE): {mae}")
-    print(f"R² Score: {r2}")
-    print(f"Adjusted R² Score: {adjusted_r2}")
-
-# Start testing the models
-def start_testing_model(model_path, split_data_train_test):
-    print('Starting testing....')
-
-    model_type = str(model_path).split('.')[-1]
-
-    if model_type == 'joblib':
-        linear_model = joblib.load(model_path)
-        y_pred = predict_model_cuml(linear_model, split_data_train_test)
-    elif model_type == 'pkl':
-        with open(model_path, 'rb') as fl:
-            linear_model = pickle.load(fl)
-            y_pred = predict_model_custom(linear_model, split_data_train_test)
+def load_model(model_path):
+    """Load a model from .joblib or .pkl/.pickle file."""
+    ext = str(model_path).split('.')[-1].lower()
+    if ext == "joblib":
+        return joblib.load(model_path)
+    elif ext in ("pkl", "pickle"):
+        with open(model_path, 'rb') as f:
+            return pickle.load(f)
     else:
-        print('Model type not found')
-        return
+        raise ValueError(f"Unsupported model extension '{ext}'")
 
-    test_model(y_pred, split_data_train_test)
+def predict(model, X):
+    """Run model.predict on X and return a CuPy array of predictions."""
+    return model.predict(X)
+
+def to_numpy(cp_array):
+    """Convert a CuPy array to a flattened NumPy array."""
+    return cp.asnumpy(cp_array).ravel()
+
+def print_sample_predictions(y_pred_np, y_true_np, binary, n=10):
+    """Print the first n predictions versus true values."""
+    print("\nSample predictions:")
+    for i in range(min(n, len(y_true_np))):
+        if binary:
+            pred_label = int(y_pred_np[i] >= 0.5)
+            print(f"#{i+1}: pred={pred_label} (p={y_pred_np[i]:.3f})  true={int(y_true_np[i])}")
+        else:
+            print(f"#{i+1}: pred={y_pred_np[i]:.3f}  true={y_true_np[i]:.3f}")
+
+def compute_classification_metrics(y_true_np, y_prob_np):
+    """Compute and print binary classification metrics."""
+    y_hat = (y_prob_np >= 0.5).astype(int)
+    print("\n=== Classification Metrics ===")
+    print(f"Accuracy       : {accuracy_score(y_true_np, y_hat):.4f}")
+    print(f"Precision      : {precision_score(y_true_np, y_hat, zero_division=0):.4f}")
+    print(f"Recall         : {recall_score(y_true_np, y_hat, zero_division=0):.4f}")
+    print(f"F1 Score       : {f1_score(y_true_np, y_hat, zero_division=0):.4f}")
+    print(f"ROC AUC        : {roc_auc_score(y_true_np, y_prob_np):.4f}")
+    print("Confusion Matrix:")
+    print(confusion_matrix(y_true_np, y_hat))
+
+def compute_regression_metrics(y_true_np, y_pred_np, feature_count=None):
+    """Compute and print regression metrics. feature_count is number of features for adjusted R²."""
+    mse = mean_squared_error(y_true_np, y_pred_np)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(y_true_np, y_pred_np)
+    r2 = r2_score(y_true_np, y_pred_np)
+    n = len(y_true_np)
+    p = feature_count if feature_count is not None else 1
+    adj_r2 = 1 - (1 - r2) * (n - 1) / max(n - p - 1, 1)
+
+    print("\n=== Regression Metrics ===")
+    print(f"MSE             : {mse:.6f}")
+    print(f"RMSE            : {rmse:.6f}")
+    print(f"MAE             : {mae:.6f}")
+    print(f"R²              : {r2:.6f}")
+    print(f"Adjusted R²     : {adj_r2:.6f}")
+
+def start_testing_model(model_path, split_data):
+    """
+    Load a model, get predictions on split_data,
+    and dispatch to classification or regression metrics.
+    """
+    print("Starting testing...")
+    model = load_model(model_path)
+
+    X_test = split_data['X_test']
+    y_test_cp = split_data['y_test']
+
+    # Predictions as CuPy
+    y_pred_cp = predict(model, X_test)
+
+    # Convert to NumPy
+    y_test_np = to_numpy(y_test_cp)
+    y_pred_np = to_numpy(y_pred_cp)
+
+    # Determine problem type
+    binary = is_binary(y_test_np)
+
+    # Print some sample predictions
+    print_sample_predictions(y_pred_np, y_test_np, binary)
+
+    # Compute and print metrics
+    if binary:
+        compute_classification_metrics(y_test_np, y_pred_np)
+    else:
+        # If you know number of features, pass feature_count=X_test.shape[1]
+        compute_regression_metrics(y_test_np, y_pred_np, feature_count=None)
+
